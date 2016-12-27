@@ -36,6 +36,7 @@ int main()
             &fileheader, &infoheader);
 
     makeGrayscaleImage(image, image_name, &fileheader, &infoheader);
+    applyFilters(image, image_name, &fileheader, &infoheader);
 
     image = deleteImage(image);
 

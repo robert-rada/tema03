@@ -14,6 +14,9 @@ void  readImage(Image *image, FILE *input);
 void  swapPointers(Pixel **a, Pixel **b);
 void  makeGrayscaleImage(Image *image, char *image_name,
         struct bmp_fileheader *fileheader, struct bmp_infoheader *infoheader);
-int  getPaddingSize(int width);
+void  makeFilteredImage(Image *image, int filter[3][3], FILE *out);
+void  applyFilters(Image *image, char *image_name,
+        struct bmp_fileheader *fileheader, struct bmp_infoheader *infoheader);
+int   getPaddingSize(int width);
 
 #endif
