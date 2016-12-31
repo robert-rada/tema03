@@ -19,6 +19,18 @@ typedef struct
     Pixel **pixels;
 } Image;
 
+typedef struct
+{
+    short x;
+    short y;
+} Coord;
+
+typedef struct
+{
+    Coord coord;
+    Pixel color;
+} EdgePixel;
+
 #pragma pack()
 
 #endif

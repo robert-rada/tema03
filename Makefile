@@ -15,3 +15,4 @@ run:
 clean:
 	rm obj/*
 	rm $(EXE)
+	rm airplane_*

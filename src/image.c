@@ -210,3 +210,157 @@ void printImage(Image *image)
     printf("%d %d\n", image->width, image->height);
 }
 
+Coord setCoord(short x, short y)
+{
+    Coord ret;
+    ret.x = x;
+    ret.y = y;
+    return ret;
+}
+
+EdgePixel setEdgePixel(short x, short y, Pixel pixel)
+{
+    EdgePixel ret;
+    ret.coord = setCoord(x, y);
+    ret.color = pixel;
+    return ret;
+}    
+
+int abs(int x)
+{
+    if (x < 0)
+        return -1 * x;
+    return x;
+}
+
+int pixelDiff(Pixel x, Pixel y)
+{
+    return abs(x.red - y.red) + abs(x.green - y.green) + abs(x.blue - y.blue);
+}
+
+EdgePixel *fill(Image *image, int lin, int col, int threshold, char **vis, int *size)
+{
+    int queue_size = 1;
+    int queue_capacity = 100;
+    Coord *queue = malloc(sizeof(Coord) * queue_capacity);
+    int edge_size = 0;
+    int edge_capacity = 30;
+    EdgePixel *edge_pixels = malloc(sizeof(EdgePixel) * edge_capacity);
+    
+    queue[0] = setCoord(lin, col);
+    vis[lin][col] = 1;
+    short dx[] = {-1, -1, -1, 0, 1, 1, 1, 0};
+    short dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
+    for (int left = 0; left < queue_size; left++)
+    {
+        char edge = 0;
+        for (int i = 0; i < 8; i++)
+        {
+            short x = queue[left].x + dx[i];
+            short y = queue[left].y + dy[i];
+            if (x < 0 || x >= image->height ||
+                y < 0 || y >= image->width)
+            {
+                continue;
+            }
+            if (pixelDiff(image->pixels[x][y], image->pixels[lin][col]) <=
+                    threshold)
+            {
+                if (vis[x][y] == 0)
+                {
+                    vis[x][y] = 1;
+                    if (queue_size == queue_capacity)
+                    {
+                        queue_capacity *= 2;
+                        queue = realloc(queue, sizeof(Coord) * queue_capacity);
+                        if (queue == NULL)
+                            fprintf(stderr, "REALLOC FAILED1\n");
+                    }
+                    queue[queue_size++] = setCoord(x, y);
+                }
+            }
+            else if (edge == 0)
+            {
+                edge = 1;
+                if (edge_size == edge_capacity)
+                {
+                    edge_capacity *= 2;
+                    edge_pixels = realloc(edge_pixels, sizeof(EdgePixel) * edge_capacity);
+                    if (edge_pixels == NULL) 
+                        fprintf(stderr, "REALLOC FAILED2\n");
+                }
+                edge_pixels[edge_size++] = setEdgePixel(queue[left].x,
+                        queue[left].y, image->pixels[lin][col]);
+            }
+        }
+    }
+
+    free(queue);
+    *size = edge_size;
+    return edge_pixels;
+}
+
+int compare(const void *a, const void *b)
+{
+    EdgePixel A = *(EdgePixel*)a;
+    EdgePixel B = *(EdgePixel*)b;
+    if (A.coord.x == B.coord.x)
+        return A.coord.y - B.coord.y;
+    return A.coord.x - B.coord.x;
+}
+
+void compressImage(Image *image, int threshold, 
+        struct bmp_fileheader *fileheader, struct bmp_infoheader *infoheader)
+{
+    char **vis = malloc(sizeof(char*) * image->height);
+    for (int i = 0; i < image->height; i++)
+    {
+        vis[i] = malloc(sizeof(char) * image->width);
+        memset(vis[i], 0, image->width);
+    }
+
+    EdgePixel *edge_pixels = malloc(1);
+    int size = 0;
+
+    for (int lin = 0; lin < image->height; lin++)
+        for (int col = 0; col < image->width; col++)
+            if (vis[lin][col] == 0)
+            {
+                int new_size = 0;
+                EdgePixel *new_pixels = fill(image, lin, col, threshold, vis,
+                        &new_size);
+                edge_pixels = realloc(edge_pixels, sizeof(EdgePixel) * (size + new_size));
+                if (edge_pixels == NULL) 
+                    fprintf(stderr, "REALLOC FAILED4\n");
+                for (int i = 0; i < new_size; i++)
+                    edge_pixels[size+i] = new_pixels[i];
+                size += new_size;
+                free(new_pixels);
+            }
+
+    qsort(edge_pixels, size, sizeof(EdgePixel), compare);
+
+    FILE *out = fopen("compressed.bin", "wb");
+
+    printHeader(fileheader, infoheader, out);
+    for (int i = 0; i < size; i++)
+    {
+        fwrite(&(edge_pixels[i].coord.x), 2, 1, out);
+        fwrite(&(edge_pixels[i].coord.y), 2, 1, out);
+        fwrite(&(edge_pixels[i].color.blue), 1, 1, out);
+        fwrite(&(edge_pixels[i].color.green), 1, 1, out);
+        fwrite(&(edge_pixels[i].color.red), 1, 1, out);
+    }
+
+    free(edge_pixels);
+
+    fclose(out);
+}
+
+
+
+
+
+
+
+

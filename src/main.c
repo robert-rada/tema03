@@ -35,6 +35,7 @@ int main()
     read(&image, &threshold, image_name, archive_name, 
             &fileheader, &infoheader);
 
+    compressImage(image, threshold, &fileheader, &infoheader);
     makeGrayscaleImage(image, image_name, &fileheader, &infoheader);
     applyFilters(image, image_name, &fileheader, &infoheader);
 
