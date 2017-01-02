@@ -38,6 +38,7 @@ int main()
     compressImage(image, threshold, &fileheader, &infoheader);
     makeGrayscaleImage(image, image_name, &fileheader, &infoheader);
     applyFilters(image, image_name, &fileheader, &infoheader);
+    decompressImage(archive_name);
 
     image = deleteImage(image);
 

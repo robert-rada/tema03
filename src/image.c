@@ -12,7 +12,7 @@ Image *newImage(int width, int height)
 
     for (int i = 0; i < height; i++)
     {
-        new_image->pixels[i] = malloc(width * sizeof(Pixel));
+        new_image->pixels[i] = malloc(getPaddingSize(width));
         if (new_image->pixels[i] == NULL)
             fprintf(stderr, "MEMORY ALLOCATION FAILED\n");
     }
@@ -65,9 +65,6 @@ void readImage(Image *image, FILE *input)
 
     for (int line = image->height - 1; line >= 0; line--)
     {
-        image->pixels[line] = malloc(line_size);
-        if (image->pixels[line] == NULL)
-            fprintf(stderr, "MEMORY ALLOCATION FAILED\n");
         fread(image->pixels[line], line_size, 1, input);
     }
 }
@@ -373,11 +370,117 @@ void compressImage(Image *image, int threshold,
     }
 
     free(edge_pixels);
+    for (int i = 0; i < image->height; i++)
+        free(vis[i]);
+    free(vis);
 
     fclose(out);
 }
 
+int readEdgePixel(EdgePixel *pixel, FILE *in)
+{
+    if (fread(&(pixel->coord.x), 2, 1, in) == 0)
+        return 0;
+    fread(&(pixel->coord.y), 2, 1, in);
+    fread(&(pixel->color.red), 1, 1, in);
+    fread(&(pixel->color.green), 1, 1, in);
+    fread(&(pixel->color.blue), 1, 1, in);
+    return 1;
+}
 
+int pixelEqual(EdgePixel a, EdgePixel b)
+{
+    if (a.color.red != b.color.red)
+        return 0;
+    if (a.color.green != b.color.green)
+        return 0;
+    if (a.color.blue != b.color.blue)
+        return 0;
+    return 1;
+}
+
+void pixelToBuffer(Pixel pixel, unsigned char **buffer)
+{
+    **buffer = pixel.blue;
+    (*buffer)++;
+    **buffer = pixel.green;
+    (*buffer)++;
+    **buffer = pixel.red;
+    (*buffer)++;
+}
+
+void zeroToBuffer(unsigned char **buffer)
+{
+    **buffer = 0;
+    (*buffer)++;
+}
+
+void decompressImage(char *file_name)
+{
+    FILE *in = fopen(file_name, "rb");
+    FILE *out = fopen("decompressed.bmp", "wb");
+
+    int offset;
+    fseek(in, 10, SEEK_SET);
+    fread(&offset, 4, 1, in);
+
+    int width, height;
+    fseek(in, 18, SEEK_SET);
+    fread(&width, 4, 1, in);
+    fread(&height, 4, 1, in);
+
+    unsigned *header = malloc(offset + 1);
+    fseek(in, 0, SEEK_SET);
+    fread(header, 1, offset, in);
+    fwrite(header, 1, offset, out);
+    free(header);
+    fseek(in, offset, SEEK_SET);
+
+    unsigned char *buffer = malloc(getPaddingSize(width) * height + 1);
+    unsigned char *buffer_start = buffer;
+    int padding = getPaddingSize(width) - 3 * width;
+    EdgePixel prev, curr;
+    readEdgePixel(&prev, in);
+    while (readEdgePixel(&curr, in))
+    {
+        if (curr.coord.x != prev.coord.x)
+        {
+            pixelToBuffer(prev.color, &buffer);
+            for (int i = 0; i < padding; i++)
+                zeroToBuffer(&buffer);
+        }
+        else if (pixelEqual(curr, prev))
+        {
+            for (int i = prev.coord.y; i < curr.coord.y; i++)
+            {
+                pixelToBuffer(curr.color, &buffer);
+            }
+        }
+        else
+        {
+            pixelToBuffer(prev.color, &buffer);
+        }
+
+        prev = curr;
+    }
+    pixelToBuffer(prev.color, &buffer);
+    for (int i = 0; i < padding; i++)
+        zeroToBuffer(&buffer);
+
+    int line_size = getPaddingSize(width);
+    for (int line = 0; line < height; line++)
+    {
+        for (int i = 0; i < line_size; i++) 
+        {
+            fwrite(buffer_start + (height - line - 1) * line_size + i, 1, 1, out);
+            fflush(out);
+        }
+    }
+
+    free(buffer_start);
+    fclose(in);
+    fclose(out);
+}
 
 
 

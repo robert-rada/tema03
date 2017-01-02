@@ -24,6 +24,7 @@ void        applyFilters(Image *image, char *image_name,
 void        compressImage(Image *image, int threshold,
                 struct bmp_fileheader *fileheader,
                 struct bmp_infoheader *infoheader);
+void        decompressImage(char *file_name);
 int         getPaddingSize(int width);
 
 #endif
