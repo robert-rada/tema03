@@ -470,11 +470,8 @@ void decompressImage(char *file_name)
     int line_size = getPaddingSize(width);
     for (int line = 0; line < height; line++)
     {
-        for (int i = 0; i < line_size; i++) 
-        {
-            fwrite(buffer_start + (height - line - 1) * line_size + i, 1, 1, out);
-            fflush(out);
-        }
+        fwrite(buffer_start + (height - line - 1) * line_size, 1,line_size,
+                out);
     }
 
     free(buffer_start);
